@@ -33,6 +33,7 @@ public class SpringSecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable) // pour REST
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/noAuth/**").permitAll() // endpoint public
+                        .requestMatchers("/secure/**").hasRole("ADMIN") // endpoint public
                         .anyRequest().hasRole("ADMIN"))
                 // le reste sécurisé
                 .httpBasic(Customizer.withDefaults());     // auth basique HTTP pour API
@@ -57,7 +58,7 @@ public class SpringSecurityConfig {
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder(){
+    public BCryptPasswordEncoder passwordEncoder(){
         return new BCryptPasswordEncoder();
     }
 }
