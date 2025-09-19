@@ -1,18 +1,23 @@
 package com.gkfcsolution.springbasicsecurity.config;
 
+import com.gkfcsolution.springbasicsecurity.model.User;
+import com.gkfcsolution.springbasicsecurity.repository.UserRepository;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+
+import java.util.List;
 
 /**
  * Created on 2025 at 12:03
@@ -25,40 +30,49 @@ import org.springframework.security.web.SecurityFilterChain;
  */
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)
 public class SpringSecurityConfig {
 
+/*    @Autowired
+    private UserDetailsService userDetailsService;*/
+    @Autowired
+private UserRepository userRepository;
+
+
+    // ✅ Encoder des mots de passe
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    // ✅ Provider qui gère l’authentification avec UserDetailsService
+/*    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(userDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
+        return authProvider;
+    }*/
+
+    // ✅ AuthenticationManager via AuthenticationConfiguration (plus moderne)
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+
+    // ✅ Config des filtres de sécurité
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(AbstractHttpConfigurer::disable) // pour REST
+                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/noAuth/**").permitAll() // endpoint public
-                        .requestMatchers("/secure/**").hasRole("ADMIN") // endpoint public
-                        .anyRequest().hasRole("ADMIN"))
-                // le reste sécurisé
-                .httpBasic(Customizer.withDefaults());     // auth basique HTTP pour API
+                        .requestMatchers("/noAuth/**").permitAll()
+                        .requestMatchers("/secure/**").hasAnyRole("ADMIN")
+                        .anyRequest().authenticated()
+                )
+                .httpBasic(Customizer.withDefaults()); // ou formLogin() si tu veux du login web
 
         return http.build();
     }
 
-
-    @Bean
-    public UserDetailsService userDetailsService(){
-        UserDetails user1 = User.builder()
-                .username("frankUser")
-                .password(passwordEncoder().encode("user1234"))
-                .roles("USER")
-                .build();
-        UserDetails admin1 = User.builder()
-                .username("frankAdmin")
-                .password(passwordEncoder().encode("admin1234"))
-                .roles("ADMIN")
-                .build();
-        return new InMemoryUserDetailsManager(user1, admin1);
-    }
-
-    @Bean
-    public BCryptPasswordEncoder passwordEncoder(){
-        return new BCryptPasswordEncoder();
-    }
 }
